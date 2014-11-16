@@ -27,6 +27,7 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
     //        3. Increment user balance ( receiving_addr -> user_id -> increment(balance) )
     //        4. Make sure to not increment balance if the TX has been noted to have been sent
     //        5. Despite not incrementing balance, broadcast a sweep tx anyway.
+    // TODO: Have transactions confirm only after N amount of confirmations. This will likely require queueing
     public void onCoinsReceived(Wallet wallet, Transaction tx, Coin prevBalance, Coin newBalance) {
         try {
             // Gets the received amount - fees incurred for that transaction
