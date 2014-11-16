@@ -29,7 +29,7 @@ public class BitcoinNetworkEventListener implements PeerEventListener {
     @Override
     public void onChainDownloadStarted(Peer peer, int blocksLeft) {
         if(!displayEvents) return;
-        log.info("Blockchain download has started (remaining={}", blocksLeft);
+        log.info("Blockchain download has started (remaining={})", blocksLeft);
     }
 
     @Override

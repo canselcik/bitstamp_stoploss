@@ -35,7 +35,6 @@ public class BitcoinNetworkProvider {
         paymentListener = new BitcoinNetworkPaymentListener(vPeerGroup, bc, s);
 
         vPeerGroup.addEventListener(eventListener, Threading.THREAD_POOL);
-
         w = new Wallet(MainNetParams.get());
         w.addEventListener(paymentListener);
         ArrayList<String> addresses = fas.getAddresses();
@@ -69,6 +68,17 @@ public class BitcoinNetworkProvider {
         return addr.size();
     }
 
+    public ArrayList<String> getKeys(){
+        if(fas == null)
+            return null;
+        try {
+            return fas.getAddresses();
+        } catch (SQLException e) {
+            log.error("An error occured while fetching addresses from DB");
+            return null;
+        }
+    }
+
     public boolean removeKey(ECKey key){
         boolean res = true;
         try {
@@ -85,6 +95,8 @@ public class BitcoinNetworkProvider {
         return false;
     }
 
+    public PostgresFullPrunedBlockStore getStore() { return s; }
+
     public void start() throws Exception {
         vPeerGroup.startAsync();
 
@@ -92,7 +104,8 @@ public class BitcoinNetworkProvider {
         vPeerGroup.waitForPeers(6).get();
 
         log.info("Initiating blockchain sync");
-        vPeerGroup.downloadBlockChain();
+        vPeerGroup.startBlockChainDownload(eventListener);
+        //vPeerGroup.downloadBlockChain();
     }
 
 }
