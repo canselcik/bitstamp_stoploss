@@ -1,11 +1,15 @@
 package com.bitcoin_payment_gateway;
 
+import org.slf4j.LoggerFactory;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Properties;
 
 
 public class FollowedAddressStore {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(FollowedAddressStore.class);
+
     private Connection conn;
     public FollowedAddressStore(String host, String dbName, String user, String pass) throws SQLException {
         String connString = "jdbc:postgresql://" + host + "/" + dbName;
@@ -19,7 +23,7 @@ public class FollowedAddressStore {
     public int addAddress(int userId, String addressInformation) throws SQLException {
         String[] components = addressInformation.split(",");
         if(components.length != 3){
-            Logger.l("A parsing error occured while adding address into DB");
+            log.error("A parsing error occured while adding address into DB ({})", addressInformation);
             return 0;
         }
         String address = components[0];
@@ -59,7 +63,7 @@ public class FollowedAddressStore {
     public ArrayList<String> getAddresses() throws SQLException {
         ArrayList<String> addr = new ArrayList<String>();
         if(conn == null) {
-            Logger.l("~~ Cannot connect to the database ~~");
+            log.error("~~ Cannot connect to the database ~~");
             return addr;
         }
 

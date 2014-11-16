@@ -2,11 +2,13 @@ package com.bitcoin_payment_gateway;
 
 import org.bitcoinj.core.*;
 import org.bitcoinj.store.BlockStore;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
 public class BitcoinNetworkEventListener implements PeerEventListener {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkEventListener.class);
     private PeerGroup vPeerGroup;
     private BlockChain bc;
     private BlockStore bs;
@@ -21,25 +23,25 @@ public class BitcoinNetworkEventListener implements PeerEventListener {
     @Override
     public void onBlocksDownloaded(Peer peer, Block block, int blocksLeft) {
         if(!displayEvents) return;
-        Logger.l("Downloaded block #" + block.getHash() + " (remaining=" + blocksLeft + ")");
+        log.info("Downloaded block #{} (remaining={})", block.getHash(), blocksLeft);
     }
 
     @Override
     public void onChainDownloadStarted(Peer peer, int blocksLeft) {
         if(!displayEvents) return;
-        Logger.l("Blockchain download has started (remaining=" + blocksLeft + ")");
+        log.info("Blockchain download has started (remaining={}", blocksLeft);
     }
 
     @Override
     public void onPeerConnected(Peer peer, int peerCount) {
         if(!displayEvents) return;
-        Logger.l("Connected to peer " + peer.toString() + " (peers=" + peerCount + ")");
+        log.debug("Connected to peer {} (peers={})", peer.toString(), peerCount);
     }
 
     @Override
     public void onPeerDisconnected(Peer peer, int peerCount) {
         if(!displayEvents) return;
-        Logger.l("Peer" + peer.toString() + " disconnected (peers=" + peerCount + ")");
+        log.debug("Peer {} disconnected (peers={})", peer.toString(), peerCount);
     }
 
     @Override
@@ -50,7 +52,7 @@ public class BitcoinNetworkEventListener implements PeerEventListener {
     @Override
     public void onTransaction(Peer peer, Transaction t) {
         if(!displayEvents) return;
-        Logger.l("TX: " + t.getHash().toString());
+        log.debug("TX: {}", t.getHash().toString());
     }
 
     @Nullable

@@ -3,11 +3,13 @@ package com.bitcoin_payment_gateway;
 import org.bitcoinj.core.ECKey;
 import org.bitcoinj.params.MainNetParams;
 import org.apache.commons.codec.binary.Base64;
+import org.slf4j.LoggerFactory;
 
 
 import java.io.UnsupportedEncodingException;
 
 public class ECKeyUtils {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(ECKeyUtils.class);
     public static ECKey getRandomKey(){
         ECKey key = new ECKey();
         return key;
@@ -23,12 +25,12 @@ public class ECKeyUtils {
         try {
             string_export_pkey = new String(b64_encoded_pkey, "ASCII");
         } catch (UnsupportedEncodingException e) {
-            Logger.l("Failed to encode private key");
+            log.error("Failed to encode private key");
             e.printStackTrace();
         }
 
         if(string_export_pkey == null){
-            Logger.l("Failed to encode private key");
+            log.error("Failed to encode private key");
             return null;
         }
 
@@ -38,7 +40,7 @@ public class ECKeyUtils {
     public static ECKey getECKey(String str){
         String[] components = str.split(",");
         if(components.length != 3) {
-            Logger.l("Cannot import '" + str + "'");
+            log.error("Cannot import '{}'", str);
             return null;
         }
         String b64_encoded_pkey = components[2];

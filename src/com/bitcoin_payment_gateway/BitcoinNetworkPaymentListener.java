@@ -5,10 +5,13 @@ import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.utils.Threading;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class BitcoinNetworkPaymentListener implements WalletEventListener {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkPaymentListener.class);
+
     private PeerGroup vPeerGroup;
     private BlockChain bc;
     private BlockStore bs;
@@ -42,9 +45,9 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
                 fee = Coin.valueOf(10000);
 
             Coin afterFee = netReceived.subtract(fee);
-            Logger.l("Net received: " + netReceived.getValue());
-            Logger.l("Fee: " + fee.getValue());
-            Logger.l("Cold wallet will receive: " + afterFee.getValue());
+
+            log.info("Received {} SAT", netReceived.getValue());
+            log.info("Deducted {}, transferring: {}", fee.getValue(), afterFee.getValue());
 
             // Generate a send request
             Wallet.SendRequest sr = Wallet.SendRequest.to(toAddr, afterFee);
@@ -58,19 +61,19 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
             wallet.completeTx(sr);
 
             final String txHash = sr.tx.getHashAsString();
-            Logger.l("Broadcasting tx: " + txHash);
+            log.info("Broadcasting tx: {}", txHash);
             vPeerGroup.broadcastTransaction(sr.tx).addListener(new Runnable() {
                 @Override
                 public void run() {
-                    Logger.l("Broadcast (" + txHash + ") was successful");
+                    log.info("Broadcast ({}) was successful", txHash);
                 }
             }, Threading.THREAD_POOL);
 
         } catch (AddressFormatException e) {
-            Logger.l("AddressFormatException: " + e.toString());
+            log.error("AddressFormatException: {}", e.toString());
             e.printStackTrace();
         } catch (InsufficientMoneyException e) {
-            Logger.l("InsufficientMoneyException: " + e.toString());
+            log.error("InsufficientMoneyException: {}", e.toString());
             e.printStackTrace();
         }
 
@@ -78,7 +81,7 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
 
     @Override
     public void onCoinsSent(Wallet wallet, Transaction tx, Coin prevBalance, Coin newBalance) {
-        Logger.l("Sent " + prevBalance.subtract(newBalance).getValue());
+        log.info("Sent " + prevBalance.subtract(newBalance).getValue());
     }
 
     @Override

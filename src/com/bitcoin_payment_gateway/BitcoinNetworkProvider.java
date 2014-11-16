@@ -5,11 +5,13 @@ import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.store.PostgresFullPrunedBlockStore;
 import org.bitcoinj.utils.Threading;
+import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class BitcoinNetworkProvider {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkProvider.class);
 
     private BitcoinNetworkEventListener eventListener;
     private BitcoinNetworkPaymentListener paymentListener;
@@ -61,7 +63,7 @@ public class BitcoinNetworkProvider {
     public int getKeyCount() throws SQLException {
         ArrayList<String> addr = fas.getAddresses();
         if(fas == null || addr == null){
-            Logger.l("Failed to get addresses from DB");
+            log.error("Failed to get addresses from DB");
             return -1;
         }
         return addr.size();
@@ -79,17 +81,17 @@ public class BitcoinNetworkProvider {
 
         if(w.removeKey(key))
             return res;
-        Logger.l("Failed to load the key into wallet");
+        log.error("Failed to load the key into wallet");
         return false;
     }
 
     public void start() throws Exception {
         vPeerGroup.startAsync();
 
-        Logger.l("Waiting for at least 6 peers...");
+        log.info("Waiting for at least 6 peers...");
         vPeerGroup.waitForPeers(6).get();
 
-        Logger.l("Initiating blockchain sync");
+        log.info("Initiating blockchain sync");
         vPeerGroup.downloadBlockChain();
     }
 
