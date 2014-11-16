@@ -5,7 +5,6 @@ import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.store.PostgresFullPrunedBlockStore;
 import org.bitcoinj.utils.Threading;
-import sun.rmi.runtime.Log;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -26,7 +25,7 @@ public class BitcoinNetworkProvider {
         bc = new BlockChain(MainNetParams.get(), s);
 
         vPeerGroup = new PeerGroup(MainNetParams.get(), bc);
-        vPeerGroup.setUserAgent("BitcoinNetworkProvider", "0.1");
+        vPeerGroup.setUserAgent("Satoshi", "0.9.3");
         vPeerGroup.addPeerDiscovery(new DnsDiscovery(MainNetParams.get()));
         vPeerGroup.setMaxConnections(16);
 
@@ -84,7 +83,6 @@ public class BitcoinNetworkProvider {
         return false;
     }
 
-
     public void start() throws Exception {
         vPeerGroup.startAsync();
 
@@ -92,9 +90,6 @@ public class BitcoinNetworkProvider {
         vPeerGroup.waitForPeers(6).get();
 
         Logger.l("Initiating blockchain sync");
-
-        // The BitcoinNetworkEventListener we are passing will not be displaying the debug
-        // information because of the 'false' flag.
         vPeerGroup.downloadBlockChain();
     }
 
