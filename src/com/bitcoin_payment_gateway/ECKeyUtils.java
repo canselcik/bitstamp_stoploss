@@ -44,7 +44,7 @@ public class ECKeyUtils {
             return null;
         }
         String b64_encoded_pkey = components[2];
-        byte[] pkey = Base64.decodeBase64(b64_encoded_pkey);
+        byte[] pkey = Base64.decodeBase64(b64_encoded_pkey.getBytes());
         return ECKey.fromPrivate(pkey);
     }
 

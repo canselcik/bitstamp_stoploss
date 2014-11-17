@@ -13,9 +13,9 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkPaymentListener.class);
 
     private PeerGroup vPeerGroup;
-    private BlockChain bc;
+    private FullPrunedBlockChain bc;
     private BlockStore bs;
-    public BitcoinNetworkPaymentListener(PeerGroup vPeerGroup, BlockChain bc, BlockStore bs){
+    public BitcoinNetworkPaymentListener(PeerGroup vPeerGroup, FullPrunedBlockChain bc, BlockStore bs){
         super();
         this.bc = bc;
         this.bs = bs;
@@ -47,8 +47,8 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
 
             Coin afterFee = netReceived.subtract(fee);
 
-            log.info("Received {} SAT", netReceived.getValue());
-            log.info("Deducted {}, transferring: {}", fee.getValue(), afterFee.getValue());
+            log.debug("Received {} SAT", netReceived.getValue());
+            log.debug("Deducted {}, transferring: {}", fee.getValue(), afterFee.getValue());
 
             // Generate a send request
             Wallet.SendRequest sr = Wallet.SendRequest.to(toAddr, afterFee);
@@ -95,7 +95,9 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
     public void onWalletChanged(Wallet wallet) { }
 
     @Override
-    public void onScriptsAdded(Wallet wallet, List<Script> scripts) { }
+    public void onScriptsChanged(Wallet wallet, List<Script> scripts, boolean b) {
+
+    }
 
     @Override
     public void onKeysAdded(List<ECKey> keys) { }

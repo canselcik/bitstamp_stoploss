@@ -1,5 +1,7 @@
 package com.bitcoin_payment_gateway;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import org.bitcoinj.core.*;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.params.MainNetParams;
@@ -18,13 +20,13 @@ public class BitcoinNetworkProvider {
     private PeerGroup vPeerGroup;
     private PostgresFullPrunedBlockStore s;
     private FollowedAddressStore fas;
-    private BlockChain bc;
+    private FullPrunedBlockChain bc;
     private Wallet w;
 
     public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD, int DB_DEPTH) throws Exception {
         fas = new FollowedAddressStore(DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
         s = new PostgresFullPrunedBlockStore(MainNetParams.get(), DB_DEPTH, DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
-        bc = new BlockChain(MainNetParams.get(), s);
+        bc = new FullPrunedBlockChain(MainNetParams.get(), s);
 
         vPeerGroup = new PeerGroup(MainNetParams.get(), bc);
         vPeerGroup.setUserAgent("Satoshi", "0.9.3");
@@ -95,7 +97,7 @@ public class BitcoinNetworkProvider {
         return false;
     }
 
-    public PostgresFullPrunedBlockStore getStore() { return s; }
+    //public PostgresFullPrunedBlockStore getStore() { return s; }
 
     public void start() throws Exception {
         vPeerGroup.startAsync();
@@ -104,8 +106,7 @@ public class BitcoinNetworkProvider {
         vPeerGroup.waitForPeers(6).get();
 
         log.info("Initiating blockchain sync");
-        vPeerGroup.startBlockChainDownload(eventListener);
-        //vPeerGroup.downloadBlockChain();
+        vPeerGroup.downloadBlockChain();
     }
 
 }

@@ -6,24 +6,31 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 
 public class BitcoinNetworkEventListener implements PeerEventListener {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkEventListener.class);
     private PeerGroup vPeerGroup;
-    private BlockChain bc;
+    private FullPrunedBlockChain bc;
     private BlockStore bs;
     private boolean displayEvents;
-    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, BlockChain bc, BlockStore bs, boolean displayEvents){
+    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, FullPrunedBlockChain bc, BlockStore bs, boolean displayEvents){
         super();
         this.bc = bc;
         this.bs = bs;
         this.displayEvents = displayEvents;
         this.vPeerGroup = vPeerGroup;
     }
+
+    @Override
+    public void onPeersDiscovered(Set<PeerAddress> peerAddresses) {
+
+    }
+
     @Override
     public void onBlocksDownloaded(Peer peer, Block block, int blocksLeft) {
         if(!displayEvents) return;
-        log.info("Downloaded block #{} (remaining={})", block.getHash(), blocksLeft);
+        log.trace("Downloaded block #{} (remaining={})", block.getHash(), blocksLeft);
     }
 
     @Override
