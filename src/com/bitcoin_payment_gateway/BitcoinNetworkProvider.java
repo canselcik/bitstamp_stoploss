@@ -1,12 +1,14 @@
 package com.bitcoin_payment_gateway;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import org.bitcoinj.core.*;
+import org.bitcoinj.core.ECKey;
+import org.bitcoinj.core.FullPrunedBlockChain;
+import org.bitcoinj.core.PeerGroup;
+import org.bitcoinj.core.Wallet;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.store.PostgresFullPrunedBlockStore;
 import org.bitcoinj.utils.Threading;
+
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
@@ -26,6 +28,7 @@ public class BitcoinNetworkProvider {
     public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD, int DB_DEPTH) throws Exception {
         fas = new FollowedAddressStore(DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
         s = new PostgresFullPrunedBlockStore(MainNetParams.get(), DB_DEPTH, DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
+
         bc = new FullPrunedBlockChain(MainNetParams.get(), s);
 
         vPeerGroup = new PeerGroup(MainNetParams.get(), bc);
@@ -39,6 +42,8 @@ public class BitcoinNetworkProvider {
         vPeerGroup.addEventListener(eventListener, Threading.THREAD_POOL);
         w = new Wallet(MainNetParams.get());
         w.addEventListener(paymentListener);
+
+        // Importing addresses
         ArrayList<String> addresses = fas.getAddresses();
         for(String addr : addresses){
             ECKey key = ECKeyUtils.getECKey(addr);
@@ -97,7 +102,7 @@ public class BitcoinNetworkProvider {
         return false;
     }
 
-    //public PostgresFullPrunedBlockStore getStore() { return s; }
+    public PostgresFullPrunedBlockStore getStore() { return s; }
 
     public void start() throws Exception {
         vPeerGroup.startAsync();
@@ -107,6 +112,27 @@ public class BitcoinNetworkProvider {
 
         log.info("Initiating blockchain sync");
         vPeerGroup.downloadBlockChain();
+
+        // After having downloaded the blockchain, we will move on
+        // to checking for balances every 10 minutes or so.
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                log.info("Initiating periodic sweep thread");
+                while(true){
+                    try {
+                        for(String info : fas.getAddresses()) {
+                            ECKey key = ECKeyUtils.getECKey(info);
+                            //s.hasUnspentOutputs();
+                            //bc.addWallet();
+                        }
+                        Thread.sleep(10 * 60 * 1000);
+                    }
+                    catch (Exception e) { e.printStackTrace(); }
+                }
+            }
+        }).start();
     }
+
 
 }

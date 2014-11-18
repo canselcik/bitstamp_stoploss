@@ -31,7 +31,6 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
     //        4. Make sure to not increment balance if the TX has been noted to have been sent
     //        5. Despite not incrementing balance, broadcast a sweep tx anyway.
     // TODO: Have transactions confirm only after N amount of confirmations. This will likely require queueing
-    // TODO: Fix the issue where if the tx is sent when this client is down, nothing is registered during download blockchain phase
     public void onCoinsReceived(Wallet wallet, Transaction tx, Coin prevBalance, Coin newBalance) {
         try {
             // Gets the received amount - fees incurred for that transaction
@@ -95,7 +94,7 @@ public class BitcoinNetworkPaymentListener implements WalletEventListener {
     public void onWalletChanged(Wallet wallet) { }
 
     @Override
-    public void onScriptsChanged(Wallet wallet, List<Script> scripts, boolean b) {
+    public void onScriptsAdded(Wallet wallet, List<Script> scripts) {
 
     }
 

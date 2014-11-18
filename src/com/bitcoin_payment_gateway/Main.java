@@ -16,7 +16,9 @@ public class Main {
     public static void main(String[] args) throws Exception {
         setLoggingLevel(Level.INFO);
 
+        // TODO: Have BitcoinNetworkProvider initialize with MainNetParams or with TestNetParams
         BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d", 1000);
+
 
         // Make sure we have at least 120 keys to watch
         while(b.getKeyCount() < 120){

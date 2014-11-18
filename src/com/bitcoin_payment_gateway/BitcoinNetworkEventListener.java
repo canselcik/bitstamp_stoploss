@@ -23,11 +23,6 @@ public class BitcoinNetworkEventListener implements PeerEventListener {
     }
 
     @Override
-    public void onPeersDiscovered(Set<PeerAddress> peerAddresses) {
-
-    }
-
-    @Override
     public void onBlocksDownloaded(Peer peer, Block block, int blocksLeft) {
         if(!displayEvents) return;
         log.trace("Downloaded block #{} (remaining={})", block.getHash(), blocksLeft);
