@@ -1,16 +1,13 @@
 package com.bitcoin_payment_gateway;
 
-import org.bitcoinj.core.ECKey;
-import org.bitcoinj.core.FullPrunedBlockChain;
-import org.bitcoinj.core.PeerGroup;
-import org.bitcoinj.core.Wallet;
+import org.bitcoinj.core.*;
 import org.bitcoinj.net.discovery.DnsDiscovery;
-import org.bitcoinj.params.MainNetParams;
-import org.bitcoinj.store.PostgresFullPrunedBlockStore;
+import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.utils.Threading;
 
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
@@ -18,51 +15,64 @@ public class BitcoinNetworkProvider {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkProvider.class);
 
     private BitcoinNetworkEventListener eventListener;
-    private BitcoinNetworkPaymentListener paymentListener;
     private PeerGroup vPeerGroup;
-    private PostgresFullPrunedBlockStore s;
+    private SPVBlockStore s;
+    private NetworkParameters params;
     private FollowedAddressStore fas;
-    private FullPrunedBlockChain bc;
+    private BlockChain bc;
     private Wallet w;
 
-    public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD, int DB_DEPTH) throws Exception {
+    public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD, String spvBlockStorePath, NetworkParameters params) throws Exception {
         fas = new FollowedAddressStore(DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
-        s = new PostgresFullPrunedBlockStore(MainNetParams.get(), DB_DEPTH, DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
+        s   = new SPVBlockStore(params, new File(spvBlockStorePath));
+        bc  = new BlockChain(params, s);
+        this.params = params;
 
-        bc = new FullPrunedBlockChain(MainNetParams.get(), s);
-
-        vPeerGroup = new PeerGroup(MainNetParams.get(), bc);
+        vPeerGroup = new PeerGroup(params, bc);
         vPeerGroup.setUserAgent("Satoshi", "0.9.3");
-        vPeerGroup.addPeerDiscovery(new DnsDiscovery(MainNetParams.get()));
+        vPeerGroup.addPeerDiscovery( new DnsDiscovery(params) );
         vPeerGroup.setMaxConnections(16);
 
-        eventListener = new BitcoinNetworkEventListener(vPeerGroup, bc, s, true);
-        paymentListener = new BitcoinNetworkPaymentListener(vPeerGroup, bc, s);
+        // TODO: Generalize
+        //vPeerGroup.setFastCatchupTimeSecs(time_after_epoch);
 
-        vPeerGroup.addEventListener(eventListener, Threading.THREAD_POOL);
-        w = new Wallet(MainNetParams.get());
-        w.addEventListener(paymentListener);
-
-        // Importing addresses
+        // Importing addresses from DB
+        w = new Wallet(params);
         ArrayList<String> addresses = fas.getAddresses();
         for(String addr : addresses){
             ECKey key = ECKeyUtils.getECKey(addr);
-            if(key == null)
-                continue;
-            w.importKey(key);
+            if(key != null)
+                w.importKey(key);
         }
+
+        // TODO: Check to make sure NetworkPaymentListener won't be needed.
+        // paymentListener = new BitcoinNetworkPaymentListener(vPeerGroup, bc, s);
+        // w.addEventListener(paymentListener);
         vPeerGroup.addWallet(w);
+
+        eventListener = new BitcoinNetworkEventListener(vPeerGroup, bc, s, w, params);
+        bc.addListener(eventListener, Threading.THREAD_POOL);
+    }
+
+
+    public void start() throws Exception {
+        vPeerGroup.startAsync();
+
+        log.info("Waiting for at least 8 peers...");
+        vPeerGroup.waitForPeers(8).get();
+
+        log.info("Initiating blockchain sync");
+        vPeerGroup.downloadBlockChain();
     }
 
     public boolean addKey(ECKey key, int user_id) {
-        String serialized = ECKeyUtils.ECKeyToString(key);
+        String serialized = ECKeyUtils.ECKeyToString(key, params);
         boolean res = true;
         try {
             res = res && fas.addAddress(user_id, serialized) <= 1;
         } catch (SQLException e){
             e.printStackTrace();
         }
-
         return w.importKey(key) && res;
     }
 
@@ -75,21 +85,10 @@ public class BitcoinNetworkProvider {
         return addr.size();
     }
 
-    public ArrayList<String> getKeys(){
-        if(fas == null)
-            return null;
-        try {
-            return fas.getAddresses();
-        } catch (SQLException e) {
-            log.error("An error occured while fetching addresses from DB");
-            return null;
-        }
-    }
-
     public boolean removeKey(ECKey key){
         boolean res = true;
         try {
-            String priv_key = key.getPrivateKeyEncoded(MainNetParams.get()).toString();
+            String priv_key = key.getPrivateKeyEncoded(params).toString();
             res = res && fas.removeAddressByAnything(priv_key);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -101,38 +100,4 @@ public class BitcoinNetworkProvider {
         log.error("Failed to load the key into wallet");
         return false;
     }
-
-    public PostgresFullPrunedBlockStore getStore() { return s; }
-
-    public void start() throws Exception {
-        vPeerGroup.startAsync();
-
-        log.info("Waiting for at least 6 peers...");
-        vPeerGroup.waitForPeers(6).get();
-
-        log.info("Initiating blockchain sync");
-        vPeerGroup.downloadBlockChain();
-
-        // After having downloaded the blockchain, we will move on
-        // to checking for balances every 10 minutes or so.
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                log.info("Initiating periodic sweep thread");
-                while(true){
-                    try {
-                        for(String info : fas.getAddresses()) {
-                            ECKey key = ECKeyUtils.getECKey(info);
-                            //s.hasUnspentOutputs();
-                            //bc.addWallet();
-                        }
-                        Thread.sleep(10 * 60 * 1000);
-                    }
-                    catch (Exception e) { e.printStackTrace(); }
-                }
-            }
-        }).start();
-    }
-
-
 }

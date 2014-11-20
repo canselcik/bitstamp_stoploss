@@ -1,7 +1,7 @@
 package com.bitcoin_payment_gateway;
 
 import org.bitcoinj.core.ECKey;
-import org.bitcoinj.params.MainNetParams;
+import org.bitcoinj.core.NetworkParameters;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.LoggerFactory;
 
@@ -15,9 +15,9 @@ public class ECKeyUtils {
         return key;
     }
 
-    public static String ECKeyToString(ECKey key){
-        String human_addr = key.toAddress(MainNetParams.get()).toString();
-        String human_pkey = key.getPrivateKeyEncoded(MainNetParams.get()).toString();
+    public static String ECKeyToString(ECKey key, NetworkParameters params){
+        String human_addr = key.toAddress(params).toString();
+        String human_pkey = key.getPrivateKeyEncoded(params).toString();
         byte[] export_pkey = key.getPrivKeyBytes();
         String string_export_pkey = null;
 

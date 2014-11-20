@@ -2,64 +2,124 @@ package com.bitcoin_payment_gateway;
 
 import org.bitcoinj.core.*;
 import org.bitcoinj.store.BlockStore;
+import org.bitcoinj.utils.Threading;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Set;
 
-public class BitcoinNetworkEventListener implements PeerEventListener {
+public class BitcoinNetworkEventListener implements BlockChainListener {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(BitcoinNetworkEventListener.class);
     private PeerGroup vPeerGroup;
-    private FullPrunedBlockChain bc;
+    private BlockChain bc;
     private BlockStore bs;
-    private boolean displayEvents;
-    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, FullPrunedBlockChain bc, BlockStore bs, boolean displayEvents){
+    private Wallet w;
+    private NetworkParameters params;
+    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, BlockChain bc, BlockStore bs, Wallet w, NetworkParameters params){
         super();
         this.bc = bc;
+        this.params = params;
+        this.w = w;
         this.bs = bs;
-        this.displayEvents = displayEvents;
         this.vPeerGroup = vPeerGroup;
     }
 
     @Override
-    public void onBlocksDownloaded(Peer peer, Block block, int blocksLeft) {
-        if(!displayEvents) return;
-        log.trace("Downloaded block #{} (remaining={})", block.getHash(), blocksLeft);
+    public void notifyNewBestBlock(StoredBlock block) throws VerificationException {
+        log.error("notifyNewBestBlock ({})", block.getHeader().getHashAsString());
     }
 
     @Override
-    public void onChainDownloadStarted(Peer peer, int blocksLeft) {
-        if(!displayEvents) return;
-        log.info("Blockchain download has started (remaining={})", blocksLeft);
+    public void reorganize(StoredBlock splitPoint, List<StoredBlock> oldBlocks, List<StoredBlock> newBlocks) throws VerificationException {
+        log.error("Reorganize called");
     }
 
     @Override
-    public void onPeerConnected(Peer peer, int peerCount) {
-        if(!displayEvents) return;
-        log.debug("Connected to peer {} (peers={})", peer.toString(), peerCount);
+    public boolean isTransactionRelevant(Transaction tx) throws ScriptException {
+        boolean relevant = w.isTransactionRelevant(tx) &&
+                           tx.getValueSentToMe(w).isGreaterThan(Coin.ZERO);
+        log.error("isRelevant({}) = {}", tx.getHashAsString(), relevant);
+        return relevant;
     }
 
     @Override
-    public void onPeerDisconnected(Peer peer, int peerCount) {
-        if(!displayEvents) return;
-        log.debug("Peer {} disconnected (peers={})", peer.toString(), peerCount);
+    public void receiveFromBlock(Transaction tx, StoredBlock block, AbstractBlockChain.NewBlockType blockType, int relativityOffset) throws VerificationException {
+        log.error("recvFromBlock TX: " + tx.getHashAsString());
+        log.error("Depth in blocks: {}", tx.getConfidence().getDepthInBlocks());
+        log.error("Confidence: {}", tx.getConfidence().toString());
+
+        if(tx.isEveryOutputSpent()){
+            log.error("Transaction {} is relevant but all outputs are spent, ignoring.", tx.getHashAsString());
+            return;
+        }
+
+        if(blockType != AbstractBlockChain.NewBlockType.BEST_CHAIN){
+            log.error("This transaction is not a part of the longest chain, ignoring.");
+            return;
+        }
+        send(tx);
+    }
+
+    // TODO: Make sure these happen in the given order:
+    //        1. Commit to DB that the transaction has been sent for this tx inputs
+    //        2. Broadcast the sweep tx
+    //        3. Increment user balance ( receiving_addr -> user_id -> increment(balance) )
+    //        4. Make sure to not increment balance if the TX has been noted to have been sent
+    //        5. Despite not incrementing balance, broadcast a sweep tx anyway.
+    public boolean send(Transaction tx){
+        try {
+            // Gets the received amount - fees incurred for that transaction
+            Coin netReceived = tx.getValueSentToMe(w);
+
+            // TODO: Generalize this
+            // Generate target addr
+            //Address toAddr = new Address(params, "1MzszV4PTEyK578hshMzx7Fqb1kdth9osx");
+            Address toAddr = new Address(params, "mtxPpabShfMMkhD39xhG8cJQPYK8ccfENf");
+
+
+            // If transaction has more than 0.0001 for us, we will be using 0.0001 as the fee
+            Coin fee = Coin.ZERO;
+            if(netReceived.getValue() > 10000)
+                fee = Coin.valueOf(10000);
+
+            Coin afterFee = netReceived.subtract(fee);
+
+            log.error("Received {} SAT", netReceived.getValue());
+            log.error("Deducted {}, transferring: {}", fee.getValue(), afterFee.getValue());
+
+            // Generate a send request
+            Wallet.SendRequest sr = Wallet.SendRequest.to(toAddr, afterFee);
+            sr.emptyWallet = true;
+            sr.signInputs = true;
+            sr.fee = fee;
+            sr.feePerKb = Coin.ZERO;
+
+            // Add inputs to the request
+            w.allowSpendingUnconfirmedTransactions();
+            w.completeTx(sr);
+
+            final String txHash = sr.tx.getHashAsString();
+            log.error("Broadcasting tx: {}", txHash);
+            vPeerGroup.broadcastTransaction(sr.tx).addListener(new Runnable() {
+                @Override
+                public void run() {
+                    log.error("Broadcast ({}) was successful", txHash);
+                }
+            }, Threading.THREAD_POOL);
+            return true;
+
+        } catch (AddressFormatException e) {
+            log.error("AddressFormatException: {}", e.toString());
+            e.printStackTrace();
+            return false;
+        } catch (InsufficientMoneyException e) {
+            log.error("InsufficientMoneyException: {}", e.toString());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
-    public Message onPreMessageReceived(Peer peer, Message m) {
-        return m;
-    }
-
-    @Override
-    public void onTransaction(Peer peer, Transaction t) {
-        if(!displayEvents) return;
-        log.debug("TX: {}", t.getHash().toString());
-    }
-
-    @Nullable
-    @Override
-    public List<Message> getData(Peer peer, GetDataMessage m) {
-        return null;
+    public boolean notifyTransactionIsInBlock(Sha256Hash txHash, StoredBlock block, AbstractBlockChain.NewBlockType blockType, int relativityOffset) throws VerificationException {
+        return false;
     }
 }

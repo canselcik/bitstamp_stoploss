@@ -4,6 +4,7 @@ package com.bitcoin_payment_gateway;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.bitcoinj.core.ECKey;
+import org.bitcoinj.params.TestNet3Params;
 import org.slf4j.LoggerFactory;
 
 public class Main {
@@ -14,16 +15,14 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        setLoggingLevel(Level.INFO);
+        setLoggingLevel(Level.ERROR);
 
-        // TODO: Have BitcoinNetworkProvider initialize with MainNetParams or with TestNetParams
-        BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d", 1000);
-
+        BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d", "/Users/user/Desktop/testnet3.bin", TestNet3Params.get());
 
         // Make sure we have at least 120 keys to watch
         while(b.getKeyCount() < 120){
             ECKey key = ECKeyUtils.getRandomKey();
-            String address = ECKeyUtils.ECKeyToString(key);
+            String address = ECKeyUtils.ECKeyToString(key, TestNet3Params.get());
             log.debug("Importing: {}", address);
             b.addKey(key, 0);
         }
