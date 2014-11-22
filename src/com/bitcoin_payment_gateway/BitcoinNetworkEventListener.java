@@ -14,10 +14,13 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
     private BlockStore bs;
     private Wallet w;
     private NetworkParameters params;
-    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, BlockChain bc, BlockStore bs, Wallet w, NetworkParameters params){
+    private Address coldWalletAddr;
+    public BitcoinNetworkEventListener(PeerGroup vPeerGroup, BlockChain bc, BlockStore bs,
+                                       Wallet w, NetworkParameters params, String coldWalletAddr) throws Exception{
         super();
         this.bc = bc;
         this.params = params;
+        this.coldWalletAddr = new Address(params, coldWalletAddr);
         this.w = w;
         this.bs = bs;
         this.vPeerGroup = vPeerGroup;
@@ -70,12 +73,6 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
             // Gets the received amount - fees incurred for that transaction
             Coin netReceived = tx.getValueSentToMe(w);
 
-            // TODO: Generalize this
-            // Generate target addr
-            //Address toAddr = new Address(params, "1MzszV4PTEyK578hshMzx7Fqb1kdth9osx");
-            Address toAddr = new Address(params, "mtxPpabShfMMkhD39xhG8cJQPYK8ccfENf");
-
-
             // If transaction has more than 0.0001 for us, we will be using 0.0001 as the fee
             Coin fee = Coin.ZERO;
             if(netReceived.getValue() > 10000)
@@ -87,7 +84,7 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
             log.error("Deducted {}, transferring: {}", fee.getValue(), afterFee.getValue());
 
             // Generate a send request
-            Wallet.SendRequest sr = Wallet.SendRequest.to(toAddr, afterFee);
+            Wallet.SendRequest sr = Wallet.SendRequest.to(this.coldWalletAddr, afterFee);
             sr.emptyWallet = true;
             sr.signInputs = true;
             sr.fee = fee;
@@ -106,11 +103,6 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
                 }
             }, Threading.THREAD_POOL);
             return true;
-
-        } catch (AddressFormatException e) {
-            log.error("AddressFormatException: {}", e.toString());
-            e.printStackTrace();
-            return false;
         } catch (InsufficientMoneyException e) {
             log.error("InsufficientMoneyException: {}", e.toString());
             e.printStackTrace();

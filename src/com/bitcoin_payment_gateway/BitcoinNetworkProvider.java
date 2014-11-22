@@ -21,20 +21,25 @@ public class BitcoinNetworkProvider {
     private FollowedAddressStore fas;
     private BlockChain bc;
     private Wallet w;
+    private String coldWalletAddr;
 
-    public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD, String spvBlockStorePath, NetworkParameters params) throws Exception {
+    public BitcoinNetworkProvider(String DB_HOST, String DB_NAME, String DB_USER, String DB_PASSWD,
+                                  String spvBlockStorePath, NetworkParameters params, long fastCatchup, String coldWalletAddr) throws Exception {
         fas = new FollowedAddressStore(DB_HOST, DB_NAME, DB_USER, DB_PASSWD);
         s   = new SPVBlockStore(params, new File(spvBlockStorePath));
         bc  = new BlockChain(params, s);
         this.params = params;
+        this.coldWalletAddr = coldWalletAddr;
 
         vPeerGroup = new PeerGroup(params, bc);
         vPeerGroup.setUserAgent("Satoshi", "0.9.3");
         vPeerGroup.addPeerDiscovery( new DnsDiscovery(params) );
         vPeerGroup.setMaxConnections(16);
 
-        // TODO: Generalize
-        //vPeerGroup.setFastCatchupTimeSecs(time_after_epoch);
+        if(fastCatchup != 0) {
+            log.info("Starting BitcoinNetworkProvider with {} fastCatchupParam", fastCatchup);
+            vPeerGroup.setFastCatchupTimeSecs(fastCatchup);
+        }
 
         // Importing addresses from DB
         w = new Wallet(params);
@@ -44,13 +49,9 @@ public class BitcoinNetworkProvider {
             if(key != null)
                 w.importKey(key);
         }
-
-        // TODO: Check to make sure NetworkPaymentListener won't be needed.
-        // paymentListener = new BitcoinNetworkPaymentListener(vPeerGroup, bc, s);
-        // w.addEventListener(paymentListener);
         vPeerGroup.addWallet(w);
 
-        eventListener = new BitcoinNetworkEventListener(vPeerGroup, bc, s, w, params);
+        eventListener = new BitcoinNetworkEventListener(vPeerGroup, bc, s, w, params, this.coldWalletAddr);
         bc.addListener(eventListener, Threading.THREAD_POOL);
     }
 
@@ -65,6 +66,10 @@ public class BitcoinNetworkProvider {
         vPeerGroup.downloadBlockChain();
     }
 
+    public NetworkParameters getNetworkParameters(){
+        return this.params;
+    }
+
     public boolean addKey(ECKey key, int user_id) {
         String serialized = ECKeyUtils.ECKeyToString(key, params);
         boolean res = true;
@@ -72,6 +77,7 @@ public class BitcoinNetworkProvider {
             res = res && fas.addAddress(user_id, serialized) <= 1;
         } catch (SQLException e){
             e.printStackTrace();
+            res = false;
         }
         return w.importKey(key) && res;
     }

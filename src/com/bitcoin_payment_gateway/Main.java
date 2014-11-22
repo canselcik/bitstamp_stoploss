@@ -9,23 +9,33 @@ import org.slf4j.LoggerFactory;
 
 public class Main {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(Main.class);
-    private static void setLoggingLevel(Level l){
-        ch.qos.logback.classic.Logger r = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    private static void setGlobalLoggingLevel(Level l){
+        ch.qos.logback.classic.Logger r =
+                (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         r.setLevel(l);
     }
 
-    public static void main(String[] args) throws Exception {
-        setLoggingLevel(Level.ERROR);
+    private static void addKeysToStorage(BitcoinNetworkProvider p, int count){
+        if(p == null || count == 0) return;
+        while(count > 0){
+            ECKey key = ECKeyUtils.getRandomKey();
+            String address = ECKeyUtils.ECKeyToString(key, p.getNetworkParameters());
+            log.debug("Creating: {}", address);
+            p.addKey(key, 0);
+            count--;
+        }
+    }
 
-        BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d", "/Users/user/Desktop/testnet3.bin", TestNet3Params.get());
+    // TODO: As a sideproject, maybe monitor all nodes for new tx broadcasts to trace the origin?
+    public static void main(String[] args) throws Exception {
+        setGlobalLoggingLevel(Level.ERROR);
+
+        BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d",
+                "/Users/user/Desktop/testnet3.bin", TestNet3Params.get(), 0, "mtxPpabShfMMkhD39xhG8cJQPYK8ccfENf");
 
         // Make sure we have at least 120 keys to watch
-        while(b.getKeyCount() < 120){
-            ECKey key = ECKeyUtils.getRandomKey();
-            String address = ECKeyUtils.ECKeyToString(key, TestNet3Params.get());
-            log.debug("Importing: {}", address);
-            b.addKey(key, 0);
-        }
+        int keysToGenerate = 120 - b.getKeyCount();
+        addKeysToStorage(b, keysToGenerate);
 
         log.info("Following {} addresses", b.getKeyCount());
         b.start();
