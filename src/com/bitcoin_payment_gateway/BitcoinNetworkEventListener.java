@@ -28,7 +28,7 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
 
     @Override
     public void notifyNewBestBlock(StoredBlock block) throws VerificationException {
-        log.error("notifyNewBestBlock ({})", block.getHeader().getHashAsString());
+        log.debug("notifyNewBestBlock ({})", block.getHeader().getHashAsString());
     }
 
     @Override
@@ -40,7 +40,7 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
     public boolean isTransactionRelevant(Transaction tx) throws ScriptException {
         boolean relevant = w.isTransactionRelevant(tx) &&
                            tx.getValueSentToMe(w).isGreaterThan(Coin.ZERO);
-        log.error("isRelevant({}) = {}", tx.getHashAsString(), relevant);
+        log.debug("isRelevant({}) = {}", tx.getHashAsString(), relevant);
         return relevant;
     }
 
@@ -63,11 +63,10 @@ public class BitcoinNetworkEventListener implements BlockChainListener {
     }
 
     // TODO: Make sure these happen in the given order:
-    //        1. Commit to DB that the transaction has been sent for this tx inputs
-    //        2. Broadcast the sweep tx
-    //        3. Increment user balance ( receiving_addr -> user_id -> increment(balance) )
-    //        4. Make sure to not increment balance if the TX has been noted to have been sent
-    //        5. Despite not incrementing balance, broadcast a sweep tx anyway.
+    //        1. Broadcast the sweep tx
+    //        2. Check if the given inputs have been processed by our daemon before. Return if they have.
+    //        3. Commit to DB that the transaction has been processed for the given tx inputs
+    //        4. Increment user balance ( receiving_addr -> user_id -> increment(balance) )
     public boolean send(Transaction tx){
         try {
             // Gets the received amount - fees incurred for that transaction

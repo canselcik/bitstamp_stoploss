@@ -4,6 +4,7 @@ package com.bitcoin_payment_gateway;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.bitcoinj.core.ECKey;
+import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.params.TestNet3Params;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +27,11 @@ public class Main {
         }
     }
 
-    // TODO: As a sideproject, maybe monitor all nodes for new tx broadcasts to trace the origin?
     public static void main(String[] args) throws Exception {
         setGlobalLoggingLevel(Level.ERROR);
 
         BitcoinNetworkProvider b = new BitcoinNetworkProvider("localhost", "inhash", "user", "kp5g6d",
-                "/Users/user/Desktop/testnet3.bin", TestNet3Params.get(), 0, "mtxPpabShfMMkhD39xhG8cJQPYK8ccfENf");
+                "/Users/user/Desktop/mainnet.bin", MainNetParams.get(), 0, "1MzszV4PTEyK578hshMzx7Fqb1kdth9osx");
 
         // Make sure we have at least 120 keys to watch
         int keysToGenerate = 120 - b.getKeyCount();
